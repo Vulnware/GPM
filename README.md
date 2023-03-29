@@ -75,47 +75,47 @@ GPM is a command-line tool written in Go that helps to manage processes on your 
 
 To start a process with GPM, run the following command:
 
-gpm-cli start <command> <args>
+```gpm-cli start <command> <args>```
 
 For example, to start a Node.js server with GPM, you could use the following command:
 
-gpm-cli start "node server.js" --name "node-server"
+````gpm-cli start "node server.js" --name "node-server"````
 
 ### Stopping a process
 
 To stop a process with GPM, run the following command:
 
-gpm-cli stop <process-name>
+````gpm-cli stop <process-name>````
 
 For example, to stop the Node.js server that we started earlier, you could use the following command:
 
-gpm-cli stop node-server
+````gpm-cli stop node-server````
 
 ### Restarting a process (Not implemented yet)
 
 To restart a process with GPM, run the following command:
 
-gpm-cli restart <process-name>
+````gpm-cli restart <process-name>````
 
 For example, to restart the Node.js server that we started earlier, you could use the following command:
 
-gpm-cli restart node-server
+````gpm-cli restart node-server````
 
 ### Listing processes (Not implemented yet)
 
 To list all the processes that are currently running with GPM, run the following command:
 
-gpm-cli ls
+````gpm-cli ls````
 
 ### Viewing process logs (Not implemented yet)
 
 To view the logs for a process that is running with GPM, run the following command:
 
-gpm-cli logs <process-name>
+````gpm-cli logs <process-name>````
 
 For example, to view the logs for the Node.js server that we started earlier, you could use the following command:
 
-gpm-cli logs node-server
+````gpm-cli logs node-server````
 
 ## Contributing
 
