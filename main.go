@@ -4,44 +4,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sync"
 
 	"github.com/akamensky/argparse"
-	"github.com/gorilla/websocket"
 )
-
-var (
-	clients  = make(map[*websocket.Conn]bool) // connected clients
-	upgrader = websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
-	}
-	serviceLogs = make(map[string][]string)
-	outputMode  *string
-	globalEnv   []string
-
-	tomlVersion        = "0.1.0"
-	tomlVersionNums    = parseVersion(tomlVersion)
-	globalConfigSchema = map[string]interface{}{
-		"host":       "string",
-		"port":       "string",
-		"outputMode": "string",
-	}
-	CONFIGS = map[string]interface{}{
-		"host":       "localhost",
-		"port":       "8080",
-		"outputMode": "stdout",
-	}
-	host       *string
-	port       *string
-	projects   []project
-	containers []Docker
-	mut        sync.Mutex
-)
-
-const ()
 
 func main() {
+
 	// check program is run by go run or go build
 	isGoRun := false
 	for _, arg := range os.Args {
@@ -136,7 +104,7 @@ func main() {
 		}
 		var reply Reply
 		// send the command to the server
-		Client.Call("Server.Start", &project{Name: *startName, Path: cwd, Command: *startFileArg}, &reply)
+		Client.Call("Server.Start", &Service{Name: *startName, Path: cwd, Command: *startFileArg}, &reply)
 
 		log.Println(reply.Message)
 
@@ -147,7 +115,7 @@ func main() {
 		fmt.Println("name: ", *stopName)
 		var reply Reply
 		// send the command to the server
-		Client.Call("Server.Stop", &project{Name: *stopName}, &reply)
+		Client.Call("Server.Stop", &Service{Name: *stopName}, &reply)
 		log.Println(reply.Message)
 
 	}

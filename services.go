@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/Vulnware/gpm/memory"
 )
@@ -19,7 +20,7 @@ func parseCommand(command string) []string {
 	parsedCommand = strings.Split(command, " ")
 	return parsedCommand
 }
-func startProject(p project, gEnv *[]string, reply *Reply, channel chan bool) {
+func startProject(p Service, gEnv *[]string, reply *Reply, channel chan bool) {
 	if pids[p.Name] != 0 {
 		log.Printf("Project %s is already running\n", p.Name)
 		*reply = Reply{Success: false, Message: "Project is already running"}
@@ -36,7 +37,7 @@ func startProject(p project, gEnv *[]string, reply *Reply, channel chan bool) {
 	// set group id of process to be the same as the parent process
 
 	c := make(chan os.Signal, 2)
-	signal.Notify(c, os.Interrupt, os.Kill)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
 		// cleanup
@@ -91,11 +92,14 @@ func startProject(p project, gEnv *[]string, reply *Reply, channel chan bool) {
 		channel <- true
 	}
 	SavePid(cmd.Process.Pid, p.Name)
-	defer DeletePid(p.Name)
-	defer LogFile.Close()
-	defer LogErrFile.Close()
-	defer delete(pids, p.Name)
-	defer cmd.Process.Kill()
+	defer func() {
+		DeletePid(p.Name)
+		LogFile.Close()
+		LogErrFile.Close()
+		delete(pids, p.Name)
+		delete(cmds, p.Name)
+		cmd.Process.Kill()
+	}() // delete pid from map when function exits (deferred)
 
 	*reply = Reply{Success: true, Message: "Project started"}
 	channel <- true
@@ -103,100 +107,22 @@ func startProject(p project, gEnv *[]string, reply *Reply, channel chan bool) {
 		log.Printf("%s command wait error: %s\n", p.Name, err)
 	}
 
-	// stdout, err := cmd.StdoutPipe()
-	// if err != nil {
-	// 	log.Printf("%s stdout pipe error: %s\n", p.Name, err)
-	// 	return
-	// }
-	// // create a io.Reader to collect the output from the command (stderr)
-	// var output bytes.Buffer
-
-	// cmd.Stderr = &output
-	// if CONFIGS["outputMode"] == "stdout" {
-	// 	cmd.Stdout = os.Stdout
-	// }
-	// scanner := bufio.NewScanner(stdout)
-
-	// if err := cmd.Start(); err != nil {
-	// 	log.Printf("%s command start error: %s\n", p.Name, err)
-	// 	return
-	// }
-
-	// defer func() {
-	// 	if err := cmd.Wait(); err != nil {
-	// 		log.Printf("%s command wait error: %s\n", p.Name, err)
-	// 		// log the error from stderr if it exists
-	// 		if output.Len() > 0 {
-	// 			log.Printf("%s stderr: %s\n", p.Name, output.String())
-	// 		}
-
-	// 	}
-	// }()
-
-	// if CONFIGS["outputMode"] == "web" {
-	// 	for scanner.Scan() {
-	// 		output := scanner.Text()
-	// 		// if err := decoder.Decode(&output); err != nil {
-	// 		// 	log.Printf("%s stdout read error: %s\n", p.Name, err)
-	// 		// 	break
-	// 		// }
-
-	// 		data := map[string]interface{}{
-	// 			"method":  "service",
-	// 			"service": p.Name,
-	// 			"output":  output,
-	// 		}
-	// 		appendLogs(p.Name, output)
-	// 		jsonData, err := json.Marshal(data)
-	// 		if err != nil {
-	// 			log.Printf("%s json marshal error: %s\n", p.Name, err)
-	// 			break
-	// 		}
-
-	// 		// Broadcast message to all clients
-	// 		for c := range clients {
-	// 			mut.Lock()
-	// 			if err := c.WriteMessage(websocket.TextMessage, jsonData); err != nil {
-	// 				log.Printf("%s write error: %s\n", p.Name, err)
-	// 				mut.Unlock()
-	// 				continue
-	// 			}
-	// 			mut.Unlock()
-	// 		}
-	// 	}
-	// 	if output.Len() > 0 {
-	// 		for c := range clients {
-	// 			mut.Lock()
-	// 			if err := c.WriteMessage(websocket.TextMessage, output.Bytes()); err != nil {
-	// 				log.Printf("%s write error: %s\n", p.Name, err)
-	// 				mut.Unlock()
-	// 				continue
-	// 			}
-	// 			mut.Unlock()
-	// 		}
-	// 	}
-	// }
 }
 
 func stopProject(name string, reply *Reply) {
-	pid := pids[name]
-	if pid == 0 {
+	cmd := cmds[name]
+	if cmd == nil {
 		log.Printf("Error: %s is not running\n", name)
 		*reply = Reply{Success: false, Message: "Project is not running"}
 		return
 	}
-	log.Printf("Stopping %s with pid %d\n", name, pid)
-	p, err := os.FindProcess(pid)
-	if err != nil {
-		log.Printf("Error: %s\n", err)
-		*reply = Reply{Success: false, Message: "Project is not running"}
+	// kill the process
+	if err := cmd.Process.Kill(); err != nil {
+		log.Printf("Error: %s failed to stop\n", name)
+		*reply = Reply{Success: false, Message: "Project failed to stop"}
 		return
 	}
-	if err := p.Kill(); err != nil {
-		log.Printf("Error: %s\n", err)
-		*reply = Reply{Success: false, Message: "Project is not running"}
-		return
-	}
+
 	*reply = Reply{Success: true, Message: "Project stopped"}
 }
 
@@ -212,4 +138,21 @@ func dumpProject(name string, reply *Reply) {
 
 	*reply = Reply{Success: true, Message: "Project memory dumped"}
 
+}
+
+func restartProject(name string, reply *Reply, channel chan bool) {
+	stopProject(name, reply)
+	if !reply.Success {
+		return
+	}
+	// find service  in services
+	for _, p := range Services {
+		if p.Name == name {
+			go startProject(p, nil, reply, channel)
+			if <-channel {
+				*reply = Reply{Success: true, Message: "Project restarted"}
+			}
+			return
+		}
+	}
 }

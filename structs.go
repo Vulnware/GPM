@@ -1,6 +1,6 @@
 package main
 
-type project struct {
+type Service struct {
 	Name    string `json:"name"`
 	Path    string `json:"path"`
 	Command string `json:"command"`
@@ -20,8 +20,18 @@ type Docker struct {
 	Compose bool                   `json:"compose"`
 }
 
+type TOMLRead struct {
+	Version     string                 `toml:"version"`
+	Services    map[string]Service     `toml:"services"`
+	Containers  map[string]Docker      `toml:"containers"`
+	Environment map[string]interface{} `toml:"environment"`
+	GlobalEnv   []string               // this will be set by the program and not by the config file
+} // this struct is used to read the config file
+
 type TOML struct {
-	Version    string    `toml:"version"`
-	Services   []project `toml:"services"`
-	Containers []Docker  `toml:"containers"`
+	Version     string                 `toml:"version"`
+	Services    []Service              `toml:"services"`
+	Docker      []Docker               `toml:"docker"`
+	Environment map[string]interface{} `toml:"environment"`
+	GlobalEnv   []string               // this will be set by the program and not by the config fileş
 }

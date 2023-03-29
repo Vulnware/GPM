@@ -46,7 +46,7 @@ func (t *Server) Start(args *StartArgs, reply *Reply) error {
 	c := make(chan bool, 1)
 
 	// start the process
-	go startProject(project{Name: args.Name, Path: args.Path, Command: args.Command}, &globalEnv, reply, c)
+	go startProject(Service{Name: args.Name, Path: args.Path, Command: args.Command}, &globalEnv, reply, c)
 
 	<-c
 	// return success
@@ -55,7 +55,7 @@ func (t *Server) Start(args *StartArgs, reply *Reply) error {
 
 func (t *Server) Stop(args *StartArgs, reply *Reply) error {
 	// stop the process
-	*reply = Reply{Success: true}
+
 	stopProject(args.Name, reply)
 	// return success
 	return nil
@@ -63,10 +63,18 @@ func (t *Server) Stop(args *StartArgs, reply *Reply) error {
 }
 func (t *Server) Dump(args *StartArgs, reply *Reply) error {
 	// dump memory of the process
-	*reply = Reply{Success: true}
+
 	dumpProject(args.Name, reply)
-	
+
 	// return success
+	return nil
+}
+
+func (t *Server) Restart(args *StartArgs, reply *Reply) error {
+	// restart the process
+	c := make(chan bool, 1)
+	restartProject(args.Name, reply, c)
+	<-c // wait for the process to restart before returning
 	return nil
 }
 func GeneratePipeName() string {

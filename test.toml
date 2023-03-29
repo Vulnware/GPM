@@ -1,0 +1,20 @@
+# This is a TOML document
+
+version = "0.1.0"
+
+[config] # if config is set, it will override console arguments 
+port = "9000"
+outputMode = "web"
+
+[environment]
+node_env = "development"
+debug = true
+
+[services]
+
+[services.MyService]
+path = "."
+command = "npm run start"
+
+[services.MyService.env]
+test_var = 1
