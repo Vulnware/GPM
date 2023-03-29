@@ -1,0 +1,17 @@
+textarea {
+    width: 100%;
+    height: 200px;
+    margin-bottom: 10px;
+    color: #fff;
+    background-color: #000;
+    border-color: #fff;
+}
+body {
+    background-color: #000;
+    color: #fff;
+}
+#output {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+}
